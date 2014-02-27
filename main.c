@@ -1,0 +1,155 @@
+/*
+ * main.c -- MSP430Framework for LaunchPad
+ * by yasunoxx
+ * ### Use mspgcc(4.6.3 or later) only !!! ###
+ */
+
+/* target type are define in Makefile */
+
+/*
+ * Framework strategy
+ *   1. System timer 10[msec], not WDT
+ *   2. peripheral initialize
+ *   3. main loop
+ *   4. signal handling
+ */
+
+#include <legacymsp430.h>
+#include "io.h"
+#include "lcd.h"
+#include "tlv.h"
+
+const char *FW_Version = "0X01";
+
+#define	TIMER_PWM_PERIOD 120
+#define TIMER_PWM_CENTER 1
+
+void ConfigureTimerPwm( void );
+void PreApplicationMode( void );
+void InitializeClocks( void );
+void InitializeLeds( void );
+void ScreenScene( void );
+
+#define SYSTIMER_COUNTUP	50
+volatile unsigned int SysTimer_Counter;
+volatile unsigned short LcdWait;
+
+#define	SYSTIMER_FLIP_OFF	0
+#define	SYSTIMER_FLIP_ON	1
+unsigned char F_SysTimer_Flipper;
+unsigned short ScreenWait;
+unsigned char ScreenScenario;
+
+int main( void )
+{
+  WDTCTL = WDTPW + WDTHOLD;  // Stop WDT
+
+  InitializeClocks();
+  // InitializeButton();
+  InitializeLeds();
+  ConfigureTimerPwm();
+  PreApplicationMode();
+
+  __enable_interrupt();
+  ConfigureAdcTempSensor();
+  InitLCD();
+  GetTLV();
+  LED_OUT |= LED1;  // Runup
+
+  /* Main Application Loop */
+  while(1)
+  {
+    // State Machines
+    SubLCD();
+    ScreenScene();
+  }
+}
+
+void PreApplicationMode( void )
+{    
+  SysTimer_Counter = 0;
+  F_SysTimer_Flipper = SYSTIMER_FLIP_OFF;
+
+  ScreenWait = 0;
+  ScreenScenario = 0;
+//  __bis_SR_register( LPM3_bits + GIE );  // LPM0 with 
+//  __bis_SR_register( LPM3_bits );
+}
+
+void ConfigureTimerPwm( void )
+{
+  TACCR0 = TIMER_PWM_PERIOD;	// Compare Maxim value
+#ifdef TARGET_XT1
+  TACTL = TASSEL_2 | MC_1;	// TACLK = SMCLK, Up mode.
+#else
+  TACTL = TASSEL_1 | MC_1;	// TACLK = ACLK, Up mode.
+#endif
+  TACCTL0 = CCIE;		// TACCTL0 output OUT bit(not used)
+  TACCTL1 = CCIE + OUTMOD_3;	// TACCTL1 Capture Compare, Set/reset
+  TACCR1 = TIMER_PWM_CENTER;	// Compare Center value
+}
+
+void InitializeClocks( void )
+{
+  /* FIXME: look LFXT1OF, and choose one */
+#ifdef TARGET_XT1
+  DCOCTL = CALDCO_12MHZ;
+  BCSCTL1 = CALBC1_12MHZ; // Set range
+  BCSCTL2 &= ~( DIVS_3 );   // SMCLK = DCO = 12MHz
+#else
+  DCOCTL = 0;
+  BCSCTL1 = 0;
+  BCSCTL1 = XT2OFF | DIVA_0 | RSEL0;
+                          // Set ACLK / 1
+  BCSCTL2 = 0;
+  BCSCTL2 = SELM_3 | DIVM_0 | SELS | DIVS_0;
+                          // SMCLK = MCLK = ACLK = 12kHz
+  BCSCTL3 = 0;
+  BCSCTL3 = LFXT1S_2; // use VLO 
+#endif
+}
+
+void InitializeLeds( void )
+{
+  LED_DIR |= LED1 + LED2;                          
+  LED_OUT &= ~( LED1 + LED2 );
+}
+
+
+
+interrupt ( TIMER0_A0_VECTOR ) TimerA0_ISR( void )
+{	
+  TACCTL0 &= ~CCIFG;
+}
+
+interrupt ( TIMER0_A1_VECTOR ) TimerA1_ISR( void )
+{
+  SysTimer_Counter++;
+  if( SysTimer_Counter >= SYSTIMER_COUNTUP )
+  {
+    if( F_SysTimer_Flipper == SYSTIMER_FLIP_OFF )
+    {
+      F_SysTimer_Flipper = SYSTIMER_FLIP_ON;
+      LED_OUT |= LED2;
+    }
+    else
+    {
+      F_SysTimer_Flipper = SYSTIMER_FLIP_OFF;
+      LED_OUT &= ~LED2;
+    }
+    SysTimer_Counter = 0;
+  }
+
+  LcdWait++;
+  ScreenWait++;
+
+  TACCTL1 &= ~CCIFG;
+}
+
+// WDT Interrupt Service Routine
+interrupt ( WDT_VECTOR ) WDT_ISR( void )
+{
+  IE1 &= ~WDTIE;  /* disable interrupt */
+  IFG1 &= ~WDTIFG;  /* clear interrupt flag */
+  WDTCTL = WDTPW + WDTHOLD;  /* put WDT back in hold state */
+}
