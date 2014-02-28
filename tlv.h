@@ -14,8 +14,8 @@
 
 #define TAG_EMPTY 0x0FE
 #define TAG_DCO_30 0x01
-#define TAG_ADC12_1 0x08
-#define TAG_ADC10_1 0x08
+#define TAG_ADC12_1 0x10
+#define TAG_ADC10_1 0x10
 
 extern unsigned short Var_CAL_ADC_GAIN_FACTOR;
 extern unsigned short Var_CAL_ADC_OFFSET;
@@ -29,8 +29,4 @@ extern unsigned char Var_CALDCO_8MHz, Var_CALBC1_8MHz;
 extern unsigned char Var_CALDCO_1MHz, Var_CALBC1_1MHz;
 
 extern void GetTLV( void );
-
-
-
-
 
