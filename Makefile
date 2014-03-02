@@ -2,7 +2,7 @@
 NAME = main
 OBJS = main.o io.o lcd.o tlv.o
 ARCH  = msp430
-CPU = msp430g2452
+CPU = msp430g2553
 
 CFLAGS = -mmcu=${CPU} -O2 -Wall -g
 
@@ -29,6 +29,9 @@ ${NAME}.lst: ${NAME}.elf
 
 clean:
 	rm -f ${NAME}.elf ${NAME}.a43 ${NAME}.lst ${OBJS} core
+
+gitpush:
+	git push -u origin master
 
 #backup archive
 dist:
