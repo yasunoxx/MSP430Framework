@@ -61,17 +61,27 @@
 const char *FW_Version = "0X01";
 
 #define	TIMER_PWM_PERIOD 120
-#define TIMER_PWM_CENTER 1
+#define TIMER_PWM_CENTER 60
 
 void ConfigureTimerPwm( void );
 void PreApplicationMode( void );
 void InitializeClocks( void );
+void initializeDCO( void );
 void InitializeLeds( void );
-void ScreenScene( void );
 
+#ifdef TARGET_XT1
+#define SYSTIMER_COUNTUP	18
+// 18.3 =50 * 12000[Hz] / 32768[Hz]
+#else
 #define SYSTIMER_COUNTUP	50
+#endif
+#define SYSTIMER_COUNTUP_DCO	50000
 volatile unsigned int SysTimer_Counter;
 volatile unsigned short LcdWait;
+#define Low 0
+#define High 1
+volatile unsigned char ClockMode;
+volatile unsigned short SysTimer_SubCounter;
 
 #define	SYSTIMER_FLIP_OFF	0
 #define	SYSTIMER_FLIP_ON	1
@@ -93,6 +103,7 @@ int main( void )
   ConfigureAdcTempSensor();
   InitLCD();
   GetTLV();
+//  initializeDCO();
   LED_OUT |= LED1;  // Runup
 
   /* Main Application Loop */
@@ -108,6 +119,8 @@ void PreApplicationMode( void )
 {    
   SysTimer_Counter = 0;
   F_SysTimer_Flipper = SYSTIMER_FLIP_OFF;
+  SysTimer_SubCounter = 0;
+  ClockMode = Low;
 
   ScreenWait = 0;
   ScreenScenario = 0;
@@ -132,9 +145,21 @@ void InitializeClocks( void )
 {
   /* FIXME: look LFXT1OF, and choose one */
 #ifdef TARGET_XT1
-  DCOCTL = CALDCO_12MHZ;
-  BCSCTL1 = CALBC1_12MHZ; // Set range
-  BCSCTL2 &= ~( DIVS_3 );   // SMCLK = DCO = 12MHz
+  {
+    // see F2xx manual section 5.2.7.1
+    unsigned char loop;
+    
+    __bic_SR_register( OSCOFF_bits ); // Oscillator ON
+    BCSCTL1 &= ~( XTS ); // Set low oscillator
+    BCSCTL3 = LFXT1S_0; // Use LFXT1
+    while( 1 )
+    {
+      IFG1 &= ~( OFIFG );
+      for( loop = 0; loop < 254; loop++ );
+      if( ( IFG1 & OFIFG ) == 0 ) break;
+    }
+    BCSCTL2 |= SELM_3;
+  }
 #else
   DCOCTL = 0;
   BCSCTL1 = 0;
@@ -146,6 +171,24 @@ void InitializeClocks( void )
   BCSCTL3 = 0;
   BCSCTL3 = LFXT1S_2; // use VLO 
 #endif
+}
+
+void initializeDCO( void )
+{
+  __disable_interrupt();
+
+  DCOCTL = Var_CALDCO_12MHz;
+  DCOCTL |= DCO2;
+  BCSCTL1 = Var_CALBC1_12MHz;
+  BCSCTL2 &= ~( DIVS_3 ); 
+  BCSCTL2 = SELM_0 | DIVM_0; // DCO = MCLK = SMCLK(12MHZ, VLO * 1000)
+  TACTL = TASSEL_2 | MC_2 | TACLR;
+      // Select SMCKL as source, no divider, Continuous mode and reset timer
+  BCSCTL1 |= XT2OFF; // XT2 off, and Set ACLK to /1 divider
+	
+  ClockMode = High;
+
+  __enable_interrupt();  
 }
 
 void InitializeLeds( void )
@@ -164,7 +207,8 @@ interrupt ( TIMER0_A0_VECTOR ) TimerA0_ISR( void )
 interrupt ( TIMER0_A1_VECTOR ) TimerA1_ISR( void )
 {
   SysTimer_Counter++;
-  if( SysTimer_Counter >= SYSTIMER_COUNTUP )
+  if( ( ClockMode == Low && SysTimer_Counter >= SYSTIMER_COUNTUP ) ||
+      ( ClockMode == High && SysTimer_Counter >= SYSTIMER_COUNTUP_DCO ) )
   {
     if( F_SysTimer_Flipper == SYSTIMER_FLIP_OFF )
     {
@@ -179,8 +223,14 @@ interrupt ( TIMER0_A1_VECTOR ) TimerA1_ISR( void )
     SysTimer_Counter = 0;
   }
 
-  LcdWait++;
-  ScreenWait++;
+  SysTimer_SubCounter++;
+  if( ClockMode == Low ||
+      ( ClockMode == High && SysTimer_SubCounter >= 1000 ) )
+  {
+    LcdWait++;
+    ScreenWait++;
+    SysTimer_SubCounter = 0;
+  }
 
   TACCTL1 &= ~CCIFG;
 }
@@ -192,3 +242,4 @@ interrupt ( WDT_VECTOR ) WDT_ISR( void )
   IFG1 &= ~WDTIFG;  /* clear interrupt flag */
   WDTCTL = WDTPW + WDTHOLD;  /* put WDT back in hold state */
 }
+
