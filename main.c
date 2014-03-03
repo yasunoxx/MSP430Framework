@@ -47,7 +47,7 @@
 
 /*
  * Framework strategy
- *   1. System timer 10[msec], not WDT
+ *   1. System timer 5[msec] at 12[MHz], not WDT
  *   2. peripheral initialize
  *   3. main loop
  *   4. signal handling
@@ -78,7 +78,7 @@ void InitializeClocks( void );
 void initializeDCO( void );
 void InitializeLeds( void );
 
-#define SYSTIMER_COUNTUP	200
+#define SYSTIMER_COUNTUP	100
 volatile unsigned int SysTimer_Counter;
 volatile unsigned short LcdWait;
 #define Low 0

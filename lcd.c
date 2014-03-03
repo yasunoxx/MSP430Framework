@@ -323,7 +323,7 @@ void ScreenScene( void )
   switch( ScreenScenario )
   {
     case 0:
-      if( ScreenWait >= 100 )
+      if( ScreenWait >= 200 )
       {
         ScreenWait = 0;
         ScreenScenario = 1;
@@ -353,9 +353,11 @@ void ScreenScene( void )
       BufLCD[ 1 ][ 3 ] = '.';
       BufLCD[ 1 ][ 6 ] = 0x0DF;
       BufLCD[ 1 ][ 7 ] = 'C';
-      ScreenScenario = 2;
+      ScreenWait = 0;
+      ScreenScenario = 0;
       break;
     case 2:
+      // SUSPEND: conversion too fast?
       if( ( ADC10CTL1 & ( 0x0FFFF - ADC10BUSY ) ) == 0 )
       {
         ScreenScenario = 1;
