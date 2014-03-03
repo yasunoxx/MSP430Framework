@@ -60,8 +60,17 @@
 
 const char *FW_Version = "0X01";
 
-#define	TIMER_PWM_PERIOD 120
-#define TIMER_PWM_CENTER 60
+#ifdef TARGET_XT1
+#define TIMER_PWM_PERIOD 22
+// 21.97 = 60 * 12000[Hz] / 32768[Hz]
+#define TIMER_PWM_CENTER 11
+// 10.98 = 30 * 12000[Hz] / 32768[Hz]
+#else
+#define	TIMER_PWM_PERIOD 60
+#define TIMER_PWM_CENTER 30
+#endif
+#define TIMER_PWM_PERIOD_DCO 60000
+#define TIMER_PWM_CENTER_DCO 30000
 
 void ConfigureTimerPwm( void );
 void PreApplicationMode( void );
@@ -69,19 +78,12 @@ void InitializeClocks( void );
 void initializeDCO( void );
 void InitializeLeds( void );
 
-#ifdef TARGET_XT1
-#define SYSTIMER_COUNTUP	18
-// 18.3 =50 * 12000[Hz] / 32768[Hz]
-#else
-#define SYSTIMER_COUNTUP	50
-#endif
-#define SYSTIMER_COUNTUP_DCO	50000
+#define SYSTIMER_COUNTUP	200
 volatile unsigned int SysTimer_Counter;
 volatile unsigned short LcdWait;
 #define Low 0
 #define High 1
 volatile unsigned char ClockMode;
-volatile unsigned short SysTimer_SubCounter;
 
 #define	SYSTIMER_FLIP_OFF	0
 #define	SYSTIMER_FLIP_ON	1
@@ -96,14 +98,17 @@ int main( void )
   InitializeClocks();
   // InitializeButton();
   InitializeLeds();
-  ConfigureTimerPwm();
   PreApplicationMode();
+  ConfigureTimerPwm();
 
   __enable_interrupt();
   ConfigureAdcTempSensor();
   InitLCD();
   GetTLV();
-//  initializeDCO();
+  __disable_interrupt();
+  initializeDCO();
+  ConfigureTimerPwm();
+  __enable_interrupt();
   LED_OUT |= LED1;  // Runup
 
   /* Main Application Loop */
@@ -119,7 +124,6 @@ void PreApplicationMode( void )
 {    
   SysTimer_Counter = 0;
   F_SysTimer_Flipper = SYSTIMER_FLIP_OFF;
-  SysTimer_SubCounter = 0;
   ClockMode = Low;
 
   ScreenWait = 0;
@@ -130,15 +134,23 @@ void PreApplicationMode( void )
 
 void ConfigureTimerPwm( void )
 {
-  TACCR0 = TIMER_PWM_PERIOD;	// Compare Maxim value
+  if( ClockMode == Low )
+  {
+    TACCR0 = TIMER_PWM_PERIOD;	// Compare Maxim value
 #ifdef TARGET_XT1
-  TACTL = TASSEL_2 | MC_1;	// TACLK = SMCLK, Up mode.
+    TACTL = TASSEL_2 | MC_1;	// TACLK = SMCLK, Up mode.
 #else
-  TACTL = TASSEL_1 | MC_1;	// TACLK = ACLK, Up mode.
+    TACTL = TASSEL_1 | MC_1;	// TACLK = ACLK, Up mode.
 #endif
-  TACCTL0 = CCIE;		// TACCTL0 output OUT bit(not used)
-  TACCTL1 = CCIE + OUTMOD_3;	// TACCTL1 Capture Compare, Set/reset
-  TACCR1 = TIMER_PWM_CENTER;	// Compare Center value
+    TACCTL0 = CCIE;		// TACCTL0 output OUT bit(not used)
+    TACCTL1 = CCIE + OUTMOD_3;	// TACCTL1 Capture Compare, Set/reset
+    TACCR1 = TIMER_PWM_CENTER;	// Compare Center value
+  }
+  else // ClockMode Low to High
+  {
+    TACCR0 = TIMER_PWM_PERIOD_DCO;
+    TACCR1 = TIMER_PWM_CENTER_DCO;
+  }
 }
 
 void InitializeClocks( void )
@@ -175,20 +187,17 @@ void InitializeClocks( void )
 
 void initializeDCO( void )
 {
-  __disable_interrupt();
-
   DCOCTL = Var_CALDCO_12MHz;
   DCOCTL |= DCO2;
   BCSCTL1 = Var_CALBC1_12MHz;
+  BCSCTL1 |= DIVA_0;
   BCSCTL2 &= ~( DIVS_3 ); 
-  BCSCTL2 = SELM_0 | DIVM_0; // DCO = MCLK = SMCLK(12MHZ, VLO * 1000)
+  BCSCTL2 = SELM_0 | DIVM_0; // DCO = MCLK = SMCLK = ACLK(12MHZ, VLO * 1000)
   TACTL = TASSEL_2 | MC_2 | TACLR;
       // Select SMCKL as source, no divider, Continuous mode and reset timer
   BCSCTL1 |= XT2OFF; // XT2 off, and Set ACLK to /1 divider
-	
-  ClockMode = High;
 
-  __enable_interrupt();  
+  ClockMode = High;
 }
 
 void InitializeLeds( void )
@@ -207,8 +216,7 @@ interrupt ( TIMER0_A0_VECTOR ) TimerA0_ISR( void )
 interrupt ( TIMER0_A1_VECTOR ) TimerA1_ISR( void )
 {
   SysTimer_Counter++;
-  if( ( ClockMode == Low && SysTimer_Counter >= SYSTIMER_COUNTUP ) ||
-      ( ClockMode == High && SysTimer_Counter >= SYSTIMER_COUNTUP_DCO ) )
+  if( SysTimer_Counter >= SYSTIMER_COUNTUP )
   {
     if( F_SysTimer_Flipper == SYSTIMER_FLIP_OFF )
     {
@@ -223,14 +231,8 @@ interrupt ( TIMER0_A1_VECTOR ) TimerA1_ISR( void )
     SysTimer_Counter = 0;
   }
 
-  SysTimer_SubCounter++;
-  if( ClockMode == Low ||
-      ( ClockMode == High && SysTimer_SubCounter >= 1000 ) )
-  {
-    LcdWait++;
-    ScreenWait++;
-    SysTimer_SubCounter = 0;
-  }
+  LcdWait++;
+  ScreenWait++;
 
   TACCTL1 &= ~CCIFG;
 }
