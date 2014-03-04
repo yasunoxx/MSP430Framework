@@ -34,6 +34,9 @@ extern unsigned short ScreenWait;
 extern unsigned char ScreenScenario;
 
 volatile unsigned char subState_LCD;
+int tempSMA[ 32 ];
+unsigned char tempSMApos, tempSMAcount;
+
 
 void InitLCD( void );
 void SubLCD( void );
@@ -71,6 +74,13 @@ void InitLCD( void )
   BufLCD[ 1 ][ 7 ] = FW_Version[ 3 ];
 
   subState_LCD = 0;
+
+  for( loop = 0; loop <= 31; loop++ )
+  {
+    tempSMA[ loop ] = 0;
+  }
+  tempSMApos = 0;
+  tempSMAcount = 0;
 }
 
 /*-----------------------------------------------------------------------------------*/
@@ -318,7 +328,7 @@ void ScreenScene( void )
 {
   unsigned char loop; // , work3, work4;
   unsigned short tempreg;
-  int work, work2;
+  long int work;
 
   switch( ScreenScenario )
   {
@@ -345,9 +355,19 @@ void ScreenScene( void )
       BufLCD[ 0 ][ 6 ] = b2n.nibbles[ MSB ];
       BufLCD[ 0 ][ 7 ] = b2n.nibbles[ LSB ];
 
-      work2 = ( ( ( 85 - 30 ) * 100 ) / ( Var_CAL_ADC_25T85 - Var_CAL_ADC_25T30 ) );
-      work = ( ( tempreg - Var_CAL_ADC_25T30 ) * work2 + 3000 );
-      sprintf( BufLCD[ 1 ], "%6d", work ); // Care NULL termination
+      work = ( ( ( 85 - 30 ) * 100 ) / ( Var_CAL_ADC_25T85 - Var_CAL_ADC_25T30 ) );
+      tempSMA[ ( tempSMApos & 0x1F ) ] = ( ( tempreg - Var_CAL_ADC_25T30 ) * work + 3000 );
+      tempSMApos++;
+      tempSMAcount++;
+      if( tempSMAcount > 31 ) tempSMAcount = 31;
+      work = 0;
+      for( loop = 0; loop <= tempSMAcount; loop++ )
+      {
+        work += tempSMA[ loop ];
+      }
+      work = work / ( tempSMAcount + 1 );
+
+      sprintf( BufLCD[ 1 ], "%6d", ( int )work ); // Care NULL termination
       BufLCD[ 1 ][ 1 ] = BufLCD[ 1 ][ 2 ];
       BufLCD[ 1 ][ 2 ] = BufLCD[ 1 ][ 3 ];
       BufLCD[ 1 ][ 3 ] = '.';
