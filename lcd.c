@@ -4,7 +4,7 @@
  * ### Use mspgcc(4.6.3 or later) only !!! ###
  */
 
-#include <legacymsp430.h>
+#include <msp430g2553.h>
 #include <string.h>
 #include <stdio.h>
 #include "io.h"
@@ -49,7 +49,7 @@ void byte2nibbles( void );
 
 /*-----------------------------------------------------------------------------------*/
 /*!
-@brief	LCD関連ペリフェラル初期化
+@brief	initialize periferal for drive LCD
 @param	void
 @retval	void
 @author	yasunoxx
@@ -85,7 +85,7 @@ void InitLCD( void )
 
 /*-----------------------------------------------------------------------------------*/
 /*!
-@brief	LCD表示サブステートマシン
+@brief	LCD drive sub state machine
 @param	void
 @retval	void
 @author	yasunoxx
@@ -177,9 +177,9 @@ void SubLCD( void )
 
 /*-----------------------------------------------------------------------------------*/
 /*!
-@brief	LCDデータ送出(4bit×2) for MSP430
-@param[in] unsigned char command：LCDコマンド値
-@param[in] unsigned char mode：コマンド(LCD_CMD)またはデータ(LCD_DATA)
+@brief	Send data to LCD(4bit×2) for MSP430
+@param[in] unsigned char command：LCD command value
+@param[in] unsigned char mode：command value(LCD_CMD), or char.data(LCD_DATA)
 @retval	void
 @author	yasunoxx
 @date	2009.10.9/2014.02.20
@@ -218,12 +218,11 @@ void lcd_send4( unsigned char command, unsigned char mode )
 
 /*-----------------------------------------------------------------------------------*/
 /*!
-@brief	LCDコマンド送出
-@param[in] unsigned char command：LCDコマンド値
+@brief	Send command to LCD(4bit) for MSP430
+@param[in] unsigned char command：LCD command value
 @retval	void
 @author	yasunoxx
 @date	2009.10.9
-@note	FIXME:2014.02.20 次回修正時にマクロで置き換える
 */
 /*-----------------------------------------------------------------------------------*/
 void lcd_cmd4( unsigned char command )
@@ -233,12 +232,11 @@ void lcd_cmd4( unsigned char command )
 
 /*-----------------------------------------------------------------------------------*/
 /*!
-@brief	LCDデータ送出
-@param[in] unsigned char command：LCDコマンド値
+@brief	Send char.dara to LCD(4bit) for MSP430
+@param[in] unsigned char command：LCD char.data value
 @retval	void
 @author	yasunoxx
 @date	2009.10.9
-@note	FIXME:2014.02.20 次回修正時にマクロで置き換える
 */
 /*-----------------------------------------------------------------------------------*/
 void lcd_data( unsigned char data )
@@ -248,12 +246,11 @@ void lcd_data( unsigned char data )
 
 /*-----------------------------------------------------------------------------------*/
 /*!
-@brief	LCDコマンド送出(8bit) for MSP430
+@brief	Send command to LCD(8bit, but 4bit MSB) for MSP430
 @param[in] unsigned char command：LCDコマンド値
 @retval	void
 @author	yasunoxx
 @date	2009.10.9/2014.02.20
-@note	LCDモジュールはRESET直後は8bitでコマンドを受け付けるため本関数を用意した
 */
 /*-----------------------------------------------------------------------------------*/
 void lcd_cmd8( unsigned char command )
@@ -283,12 +280,11 @@ void lcd_cmd8( unsigned char command )
 
 /*-----------------------------------------------------------------------------------*/
 /*!
-@brief	8bit値を4bit値×2にする(atoi()の16進8bit限定版)
+@brief	8bit split to 4bit×2(like atoi())
 @param	void
 @retval	void
 @author	yasunoxx
 @date	2009.10.9
-@note	b2n構造体に対する操作
 */
 /*-----------------------------------------------------------------------------------*/
 void byte2nibbles( void )
@@ -317,7 +313,7 @@ void byte2nibbles( void )
 
 /*-----------------------------------------------------------------------------------*/
 /*!
-@brief	LCD表示自動化ステートマシン
+@brief	Temp. Meter Application(LCD automated state machine sample)
 @param	void
 @retval	void
 @author	yasunoxx
