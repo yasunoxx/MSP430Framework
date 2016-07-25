@@ -4,7 +4,7 @@
  * ### Use mspgcc(4.6.3 or later) only !!! ###
  */
 
-#include <msp430g2553.h>
+#include <legacymsp430.h>
 #include <string.h>
 #include <stdio.h>
 #include "io.h"
@@ -247,7 +247,7 @@ void lcd_data( unsigned char data )
 /*-----------------------------------------------------------------------------------*/
 /*!
 @brief	Send command to LCD(8bit, but 4bit MSB) for MSP430
-@param[in] unsigned char command：LCDコマンド値
+@param[in] unsigned char command：LCD command value
 @retval	void
 @author	yasunoxx
 @date	2009.10.9/2014.02.20
