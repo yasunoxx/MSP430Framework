@@ -12,35 +12,35 @@
  *
  * MSP-EXP430G2-LaunchPad User Experience Application
  *
- * Copyright (C) 2011 Texas Instruments Incorporated - http://www.ti.com/ 
- * 
- * 
- *  Redistribution and use in source and binary forms, with or without 
- *  modification, are permitted provided that the following conditions 
+ * Copyright (C) 2011 Texas Instruments Incorporated - http://www.ti.com/
+ *
+ *
+ *  Redistribution and use in source and binary forms, with or without
+ *  modification, are permitted provided that the following conditions
  *  are met:
  *
- *    Redistributions of source code must retain the above copyright 
+ *    Redistributions of source code must retain the above copyright
  *    notice, this list of conditions and the following disclaimer.
  *
  *    Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in the 
- *    documentation and/or other materials provided with the   
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the
  *    distribution.
  *
  *    Neither the name of Texas Instruments Incorporated nor the names of
  *    its contributors may be used to endorse or promote products derived
  *    from this software without specific prior written permission.
  *
- *  THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS 
- *  "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT 
+ *  THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+ *  "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
  *  LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
- *  A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT 
- *  OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, 
- *  SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT 
+ *  A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+ *  OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+ *  SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
  *  LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
  *  DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
- *  THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT 
- *  (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE 
+ *  THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+ *  (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  *  OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
 */
@@ -53,7 +53,12 @@
  *   4. signal handling
  */
 
+#ifdef GCC_VERSION_463
 #include <legacymsp430.h>
+#else
+#include <msp430g2553.h>
+#endif
+
 #include "io.h"
 #include "lcd.h"
 #include "tlv.h"
@@ -121,14 +126,14 @@ int main( void )
 }
 
 void PreApplicationMode( void )
-{    
+{
   SysTimer_Counter = 0;
   F_SysTimer_Flipper = SYSTIMER_FLIP_OFF;
   ClockMode = Low;
 
   ScreenWait = 0;
   ScreenScenario = 0;
-//  __bis_SR_register( LPM3_bits + GIE );  // LPM0 with 
+//  __bis_SR_register( LPM3_bits + GIE );  // LPM0 with
 //  __bis_SR_register( LPM3_bits );
 }
 
@@ -160,7 +165,7 @@ void InitializeClocks( void )
   {
     // see F2xx manual section 5.2.7.1
     unsigned char loop;
-    
+
     __bic_SR_register( OSCOFF_bits ); // Oscillator ON
     BCSCTL1 &= ~( XTS ); // Set low oscillator
     BCSCTL3 = LFXT1S_0; // Use LFXT1
@@ -181,7 +186,7 @@ void InitializeClocks( void )
   BCSCTL2 = SELM_3 | DIVM_0 | SELS | DIVS_0;
                           // SMCLK = MCLK = ACLK = 12kHz
   BCSCTL3 = 0;
-  BCSCTL3 = LFXT1S_2; // use VLO 
+  BCSCTL3 = LFXT1S_2; // use VLO
 #endif
 }
 
@@ -191,7 +196,7 @@ void initializeDCO( void )
   DCOCTL |= DCO2;
   BCSCTL1 = Var_CALBC1_12MHz;
   BCSCTL1 |= DIVA_0;
-  BCSCTL2 &= ~( DIVS_3 ); 
+  BCSCTL2 &= ~( DIVS_3 );
   BCSCTL2 = SELM_0 | DIVM_0; // DCO = MCLK = SMCLK = ACLK(12MHZ, VLO * 1000)
   TACTL = TASSEL_2 | MC_2 | TACLR;
       // Select SMCKL as source, no divider, Continuous mode and reset timer
@@ -202,18 +207,26 @@ void initializeDCO( void )
 
 void InitializeLeds( void )
 {
-  LED_DIR |= LED1 + LED2;                          
+  LED_DIR |= LED1 + LED2;
   LED_OUT &= ~( LED1 + LED2 );
 }
 
 
 
+#if __MSP430_HEADER_VERSION__ == 1210
+void __attribute__ (( interrupt TIMER0_A0_VECTOR )) TimerA0_ISR( void )
+#else
 interrupt ( TIMER0_A0_VECTOR ) TimerA0_ISR( void )
-{	
+#endif
+{
   TACCTL0 &= ~CCIFG;
 }
 
+#if __MSP430_HEADER_VERSION__ == 1210
+void __attribute__ (( interrupt TIMER0_A1_VECTOR )) TimerA1_ISR( void )
+#else
 interrupt ( TIMER0_A1_VECTOR ) TimerA1_ISR( void )
+#endif
 {
   SysTimer_Counter++;
   if( SysTimer_Counter >= SYSTIMER_COUNTUP )
@@ -238,10 +251,13 @@ interrupt ( TIMER0_A1_VECTOR ) TimerA1_ISR( void )
 }
 
 // WDT Interrupt Service Routine
+#if __MSP430_HEADER_VERSION__ == 1210
+void __attribute__ (( interrupt WDT_VECTOR )) WDT_ISR( void )
+#else
 interrupt ( WDT_VECTOR ) WDT_ISR( void )
+#endif
 {
   IE1 &= ~WDTIE;  /* disable interrupt */
   IFG1 &= ~WDTIFG;  /* clear interrupt flag */
   WDTCTL = WDTPW + WDTHOLD;  /* put WDT back in hold state */
 }
-

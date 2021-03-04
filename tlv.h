@@ -12,10 +12,12 @@
 #define TLV_END (0x10FF)
 #define TLV_SIZE (TLV_END - TLV_START + 1)
 
+#ifndef TAG_EMPTY
 #define TAG_EMPTY 0x0FE
 #define TAG_DCO_30 0x01
-#define TAG_ADC12_1 0x10
+// #define TAG_ADC12_1 0x10
 #define TAG_ADC10_1 0x10
+#endif
 
 extern unsigned short Var_CAL_ADC_GAIN_FACTOR;
 extern unsigned short Var_CAL_ADC_OFFSET;
@@ -29,4 +31,3 @@ extern unsigned char Var_CALDCO_8MHz, Var_CALBC1_8MHz;
 extern unsigned char Var_CALDCO_1MHz, Var_CALBC1_1MHz;
 
 extern void GetTLV( void );
-

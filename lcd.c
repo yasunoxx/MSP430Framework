@@ -4,7 +4,11 @@
  * ### Use mspgcc(4.6.3 or later) only !!! ###
  */
 
+#ifdef GCC_VERSION_463
 #include <legacymsp430.h>
+#else
+#include <msp430g2553.h>
+#endif
 #include <string.h>
 #include <stdio.h>
 #include "io.h"
@@ -379,6 +383,6 @@ void ScreenScene( void )
         ScreenScenario = 1;
       }
     default:
-      ScreenScenario = 0; 
+      ScreenScenario = 0;
  }
 }

@@ -8,7 +8,11 @@
    http://e2e.ti.com/support/microcontrollers/msp430/f/166/t/89118.aspx?pi24337=1
 */
 
+#ifdef GCC_VERSION_463
 #include <legacymsp430.h>
+#else
+#include <msp430g2553.h>
+#endif
 #include <string.h>
 #include "tlv.h"
 
@@ -30,7 +34,7 @@ void GetTLV( void )
   unsigned char data[ TLV_SIZE ];
   unsigned char count = 0;
   unsigned short checksum;
-  
+
   memcpy( data, (void *)TLV_START, TLV_SIZE );  // Read TLV
 
   // FIXME: add here CHECKSUM VALIDATION
@@ -45,7 +49,8 @@ void GetTLV( void )
       count += data[ count ];
       count++;
     }
-    else if( data[ count ] == TAG_ADC10_1 || data[ count ] == TAG_ADC12_1 )
+    else if( data[ count ] == TAG_ADC10_1 )
+//    else if( data[ count ] == TAG_ADC10_1 || data[ count ] == TAG_ADC12_1 )
     {
       count++;
       count++; // size
@@ -82,4 +87,3 @@ void GetTLV( void )
     if( count >= TLV_SIZE ) break;
   } // endwhile
 }
-
